@@ -5,6 +5,8 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Build](https://img.shields.io/badge/Status-Active-brightgreen)
 
+[🇬🇧 Read in English](README.en.md)
+
 **Route Planner Factory** est une solution flexible et puissante pour générer des itinéraires à partir d'une liste d'adresses, avec estimation du temps et du coût selon les caractéristiques d'un véhicule. Grâce à son architecture basée sur le **Factory Pattern**, il permet de choisir dynamiquement entre plusieurs moteurs de calcul de routes, comme **OSRM** ou **OSMnx**.
 
 > 🌍 Visualisez vos parcours sur une carte interactive, exportée au format HTML, et obtenez instantanément des estimations précises de distance, temps de trajet et coût.
