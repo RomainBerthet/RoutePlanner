@@ -3,8 +3,8 @@ from route_planner import RoutePlanner
 
 if __name__ == "__main__":
     adresses = [
-        "17, rue nationale 39500 Tavaux",
-        "route de vienne 69008 Lyon",
+        "Tavaux, France",
+        "Lyon, France",
         "Venice, Italy",
     ]
 
