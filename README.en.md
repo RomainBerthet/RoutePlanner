@@ -1,15 +1,15 @@
 
-# 🚀 Route Planner Factory
+# 🚀 Route Planner
 
-![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Build](https://img.shields.io/badge/Status-Active-brightgreen)
 
-[🇫🇷 Read in French](README.md)
+[🇫🇷 Lire en Français](README.md)
 
-**Route Planner Factory** is a flexible and powerful solution to generate routes from a list of addresses, with time and cost estimation based on vehicle characteristics. Thanks to its architecture based on the **Factory Pattern**, it allows dynamic selection between multiple routing engines, such as **OSRM** or **OSMnx**.
+**Route Planner** is a flexible and powerful solution to generate routes from a list of addresses, with travel time and cost estimation based on vehicle characteristics. Thanks to its **Factory Pattern** architecture, it allows dynamic selection between multiple routing engines, such as **OSRM** or **OSMnx**.
 
-> 🌍 Visualize your routes on an interactive map exported in HTML format, and instantly get accurate distance, travel time, and cost estimations.
+> 🌍 Visualize your routes on an interactive HTML map, and instantly get accurate distance, travel time, and cost estimations.
 
 ---
 
@@ -18,7 +18,7 @@
 - 🔹 **Multi-routing**: Choose between OSRM (fast API) or OSMnx (local computation).
 - 📍 **Smart geocoding** from addresses.
 - 🛣️ **Automatic route plotting**.
-- ⏱️ **Travel time estimation** based on transport mode (car, bike, walk).
+- ⏱️ **Travel time estimation** based on transport mode (car, bike, pedestrian).
 - 💰 **Cost calculation** based on consumption and energy price.
 - 🗺️ **Interactive map export** in HTML format.
 - 🏗️ Scalable architecture following **SOLID** principles.
@@ -35,7 +35,7 @@
 ## 🚧 Architecture
 
 ```
-route_planner_factory/
+route_planner/
 ├── main.py                 # Entry point
 ├── route_planner.py        # Routing and export coordination
 ├── vehicule.py             # Vehicle model
@@ -44,19 +44,17 @@ route_planner_factory/
 │   ├── osrm_router.py
 │   └── interface.py
 ├── exporters/              # Export management
-│   └── html_exporter.py
-├── requirements.txt
-└── README.md
+    └── html_exporter.py
 ```
 
 ---
 
-## 🚀 Installation
+## 🚀 Local Installation
 
 1. **Clone the repository:**
 ```bash
 git clone https://github.com/RomainBerthet/RoutePlanner.git
-cd route_planner_factory
+cd route_planner
 ```
 
 2. **Install dependencies:**
@@ -64,9 +62,15 @@ cd route_planner_factory
 pip install -r requirements.txt
 ```
 
+## Install the `route_planner` package:
+
+```bash
+pip install route_planner
+```
+
 ---
 
-## 🎮 Usage
+## 🎮 Local Usage
 
 Edit the `main.py` file with your addresses and vehicle specifications:
 
@@ -92,6 +96,24 @@ python main.py
 
 ---
 
+## 🎮 Example using the `route_planner` package
+
+```python
+from route_planner import Vehicule, RoutePlanner
+
+adresses = [
+    "Tour Eiffel, Paris",
+    "Louvre, Paris",
+    "Notre-Dame de Paris"
+]
+
+vehicule = Vehicule(type_transport='drive', consommation_l_km=0.06, cout_energie=1.8)
+planner = RoutePlanner(vehicule, methode_routage='osrm')
+planner.generer_parcours(adresses, "parcours_paris")
+```
+
+---
+
 ## ⚙️ Available Parameters
 
 | Parameter         | Description                                      | Example        |
@@ -108,7 +130,7 @@ python main.py
 - [x] OSRM Integration
 - [ ] Full OSMnx Support
 - [ ] PDF / PNG Export
-- [ ] "Tourist Walking" Mode
+- [ ] Add "Tourist Walking" Mode
 - [ ] GraphHopper Integration
 - [ ] Minimal Web Interface (Flask)
 

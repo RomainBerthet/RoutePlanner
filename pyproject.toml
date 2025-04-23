@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "route-planner"
+version = "0.1.0"
+description = "Flexible route planner with dynamic routing engine selection (OSRM, OSMnx, ...)."
+authors = [
+    { name="Romain Berthet", email="berthet.romain3@gmail.com" }
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = [
+    "requests",
+    "geopy",
+    "folium",
+    "osmnx",
+    "geopandas"
+]
+
+[project.scripts]
+route-planner = "route_planner.main:main"

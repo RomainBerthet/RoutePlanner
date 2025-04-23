@@ -1,13 +1,13 @@
 
-# 🚀 Route Planner Factory
+# 🚀 Route Planner
 
-![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Build](https://img.shields.io/badge/Status-Active-brightgreen)
 
 [🇬🇧 Read in English](README.en.md)
 
-**Route Planner Factory** est une solution flexible et puissante pour générer des itinéraires à partir d'une liste d'adresses, avec estimation du temps et du coût selon les caractéristiques d'un véhicule. Grâce à son architecture basée sur le **Factory Pattern**, il permet de choisir dynamiquement entre plusieurs moteurs de calcul de routes, comme **OSRM** ou **OSMnx**.
+**Route Planner** est une solution flexible et puissante pour générer des itinéraires à partir d'une liste d'adresses, avec estimation du temps et du coût selon les caractéristiques d'un véhicule. Grâce à son architecture basée sur le **Factory Pattern**, il permet de choisir dynamiquement entre plusieurs moteurs de calcul de routes, comme **OSRM** ou **OSMnx**.
 
 > 🌍 Visualisez vos parcours sur une carte interactive, exportée au format HTML, et obtenez instantanément des estimations précises de distance, temps de trajet et coût.
 
@@ -35,7 +35,7 @@
 ## 🚧 Architecture
 
 ```
-route_planner_factory/
+route_planner/
 ├── main.py                 # Point d'entrée
 ├── route_planner.py        # Coordination du routage et export
 ├── vehicule.py             # Modèle de véhicule
@@ -44,19 +44,17 @@ route_planner_factory/
 │   ├── osrm_router.py
 │   └── interface.py
 ├── exporters/              # Gestion des exports
-│   └── html_exporter.py
-├── requirements.txt
-└── README.md
+    └── html_exporter.py
 ```
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation Locale
 
 1. **Clonez le dépôt :**
 ```bash
 git clone https://github.com/RomainBerthet/RoutePlanner.git
-cd route_planner_factory
+cd route_planner
 ```
 
 2. **Installez les dépendances :**
@@ -64,9 +62,15 @@ cd route_planner_factory
 pip install -r requirements.txt
 ```
 
+## Installation du package `route_planner` :
+
+```bash
+pip install route_planner
+```
+
 ---
 
-## 🎮 Utilisation
+## 🎮 Utilisation en locale
 
 Modifiez le fichier `main.py` selon vos adresses et caractéristiques de véhicule :
 
@@ -89,6 +93,24 @@ python main.py
 ```
 
 ✅ Un fichier `parcours_paris.html` sera généré avec votre itinéraire interactif.
+
+---
+
+## 🎮 Exemple d'utilisation avec le package `route_planner`
+
+```python
+from route_planner import Vehicule, RoutePlanner
+
+adresses = [
+    "Tour Eiffel, Paris",
+    "Louvre, Paris",
+    "Notre-Dame de Paris"
+]
+
+vehicule = Vehicule(type_transport='drive', consommation_l_km=0.06, cout_energie=1.8)
+planner = RoutePlanner(vehicule, methode_routage='osrm')
+planner.generer_parcours(adresses, "parcours_paris")
+```
 
 ---
 
