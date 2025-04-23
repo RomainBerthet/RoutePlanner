@@ -4,6 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Build](https://img.shields.io/badge/Status-Active-brightgreen)
+![Tests](https://github.com/RomainBerthet/RoutePlanner/actions/workflows/tests.yml/badge.svg)
 
 [🇫🇷 Lire en Français](README.md)
 
