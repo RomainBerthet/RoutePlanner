@@ -17,7 +17,6 @@ class OSMnxRouter(IRouter):
     def calculer_route(self, adresses):
         points = [self.geocode(adr) for adr in adresses]
 
-        # Calcul de la bounding box avec marge
         lats = [lat for lat, lon in points]
         lons = [lon for lat, lon in points]
 
@@ -29,28 +28,35 @@ class OSMnxRouter(IRouter):
             network_type=self.mode
         )
 
-        # Récupération des noeuds les plus proches
         nodes = [ox.nearest_nodes(graph, lon, lat) for lat, lon in points]
 
-        # Calcul du chemin complet
         full_route = []
-        for i in range(len(nodes) - 1):
-            route = ox.shortest_path(graph, nodes[i], nodes[i+1], weight='length')
-            full_route += route[:-1]
-        full_route.append(nodes[-1])
+        etapes = []
 
-        # Extraction des données du parcours
-        edges_gdf = routing.route_to_gdf(graph, full_route)
-        distance_km = edges_gdf['length'].sum() / 1000
-
-        # Estimation simple du temps avec vitesses moyennes par mode
         vitesses = {'drive': 50, 'bike': 15, 'walk': 5}
-        vitesse = vitesses.get(self.mode, 50)
-        temps_h = distance_km / vitesse
+        vitesse = vitesses.get(self.mode, 50)  # km/h
 
+        for i in range(len(nodes) - 1):
+            route = ox.shortest_path(graph, nodes[i], nodes[i + 1], weight='length')
+            full_route += route[:-1]  # éviter doublons
+
+            edges = ox.utils_graph.get_route_edge_attributes(graph, route, 'length')
+            distance_km = sum(edges) / 1000
+            duree_h = distance_km / vitesse
+
+            etapes.append({
+                "depart": adresses[i],
+                "arrivee": adresses[i + 1],
+                "distance_km": round(distance_km, 3),
+                "duree_h": round(duree_h, 3)
+            })
+
+        full_route.append(nodes[-1])  # dernier noeud
+
+        edges_gdf = routing.route_to_gdf(graph, full_route)
+        distance_totale_km = edges_gdf['length'].sum() / 1000
         geometry = edges_gdf.geometry.__geo_interface__
-
-        # Conversion des noeuds en coordonnées lon, lat
         coords = [(graph.nodes[n]['x'], graph.nodes[n]['y']) for n in full_route]
+        duree_totale_h = sum(e["duree_h"] for e in etapes)
 
-        return coords, geometry, distance_km, temps_h
+        return coords, geometry, distance_totale_km, duree_totale_h, etapes
