@@ -35,7 +35,7 @@ class OSRMRouter(IRouter):
 
         # Étapes entre les adresses
         etapes = []
-        for i, leg in enumerate(route['legs']):
+        for i, leg in enumerate(route.get('legs', [])):
             etapes.append({
                 "depart": adresses[i],
                 "arrivee": adresses[i + 1],

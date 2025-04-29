@@ -18,7 +18,7 @@ def test_calculer_route(mock_geocode, mock_requests):
     }
 
     router = OSRMRouter(mode='drive')
-    coords, geometry, distance_km, temps_h = router.calculer_route(["Adresse 1", "Adresse 2"])
+    coords, geometry, distance_km, temps_h, etapes = router.calculer_route(["Adresse 1", "Adresse 2"])
 
     assert distance_km == 3
     assert round(temps_h, 2) == 0.17

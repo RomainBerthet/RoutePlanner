@@ -10,7 +10,7 @@ def test_generer_parcours():
     planner.router = MagicMock()
     planner.exporter = MagicMock()
 
-    planner.router.calculer_route.return_value = ([(0,0)], {}, 10, 0.2)
+    planner.router.calculer_route.return_value = ([(0,0)], {}, 10, 0.2, [])
 
     planner.generer_parcours(["A", "B"], "test_output")
 
