@@ -1,159 +1,286 @@
+# Route Planner
 
-# 🚀 Route Planner
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Version](https://img.shields.io/badge/version-0.4.0-111827)](pyproject.toml)
+[![Tests](https://img.shields.io/badge/tests-pytest-0A7E07?logo=pytest&logoColor=white)](pytest.ini)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![OSM](https://img.shields.io/badge/data-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/)
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Build](https://img.shields.io/badge/Status-Active-brightgreen)
-![Tests](https://github.com/RomainBerthet/RoutePlanner/actions/workflows/tests.yml/badge.svg)
+Multi-engine route planner to build, optimize, and export routes from a list of addresses.
 
-[🇫🇷 Lire en Français](README.md)
+Route Planner provides a local web UI, a CLI, and a Python API. It supports multiple travel modes, several optimization objectives, HTML/PDF/JSON exports, and statistics tailored to the selected transport mode.
 
-**Route Planner** is a flexible and powerful solution to generate routes from a list of addresses, with travel time and cost estimation based on vehicle characteristics. Thanks to its **Factory Pattern** architecture, it allows dynamic selection between multiple routing engines, such as **OSRM** or **OSMnx**.
+[Lire en francais](README.md)
 
-> 🌍 Visualize your routes on an interactive HTML map, and instantly get accurate distance, travel time, and cost estimations.
+![Route Planner demo](assets/demo_paris.png)
 
----
+## Highlights
 
-## ✨ Features
+- Multi-engine routing: OSRM, OSMnx, Valhalla, GraphHopper, and BRouter.
+- Travel modes: car, bike, walking.
+- Stop order optimization for multi-point routes.
+- Objectives: fastest, shortest, cheapest, balanced time/distance.
+- Dynamic configuration by routing engine: URLs, GraphHopper API key, Valhalla service, BRouter service.
+- Mode-aware fields: budget, toll avoidance, consumption, and energy cost only appear when relevant.
+- Contextual statistics: cost/CO2 for car, calories/CO2 saved for bike, steps/pace/calories for walking.
+- Automatic exports: interactive HTML map, PDF route sheet, and JSON payload.
+- SQLite cache to reduce repeated geocoding and matrix calls.
 
-- 🔹 **Multi-routing**: Choose between OSRM (fast API) or OSMnx (local computation).
-- 📍 **Smart geocoding** from addresses.
-- 🛣️ **Automatic route plotting**.
-- ⏱️ **Travel time estimation** based on transport mode (car, bike, pedestrian).
-- 💰 **Cost calculation** based on consumption and energy price.
-- 🗺️ **Interactive map export** in HTML format.
-- 🏗️ Scalable architecture following **SOLID** principles.
+## Installation
 
----
-
-## ⚡ Preview
-
-![Demo Route Planner](assets/demo_paris.png)  
-*Example of a route generated between several points in Paris using OSRM.*
-
----
-
-## 🚧 Architecture
-
-```
-route_planner/
-├── main.py                 # Entry point
-├── route_planner.py        # Routing and export coordination
-├── vehicule.py             # Vehicle model
-├── routers/                # Router implementations
-│   ├── factory.py
-│   ├── osrm_router.py
-│   └── interface.py
-├── exporters/              # Export management
-    └── html_exporter.py
-```
-
----
-
-## 🚀 Local Installation
-
-1. **Clone the repository:**
 ```bash
 git clone https://github.com/RomainBerthet/RoutePlanner.git
-cd route_planner
-```
-
-2. **Install dependencies:**
-```bash
+cd RoutePlanner
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 ```
 
-## Install the `route_planner` package:
+Quick check:
 
 ```bash
-pip install route_planner
+pytest
 ```
 
----
-
-## 🎮 Local Usage
-
-Edit the `main.py` file with your addresses and vehicle specifications:
-
-```python
-adresses = [
-    "Tour Eiffel, Paris",
-    "Louvre, Paris",
-    "Notre-Dame de Paris"
-]
-
-vehicule = Vehicule(type_transport='drive', consommation_l_km=0.06, cout_energie=1.8)
-planner = RoutePlanner(vehicule, methode_routage='osrm')
-planner.generer_parcours(adresses, "parcours_paris")
-```
-
-Then simply run:
+## Run The Web UI
 
 ```bash
-python main.py
+route-planner-web --host 127.0.0.1 --port 8000
 ```
 
-✅ A `parcours_paris.html` file will be generated with your interactive route.
+Then open:
 
----
+```text
+http://127.0.0.1:8000
+```
 
-## 🎮 Example using the `route_planner` package
+The interface only displays fields that make sense for the current context:
+
+| Selection | Visible fields |
+| --- | --- |
+| `Car` | budget, tolls, consumption, energy cost |
+| `Bike` | time/distance/balanced objectives, bike statistics |
+| `Walking` | time/distance/balanced objectives, walking statistics |
+| `Valhalla` | Valhalla service URL |
+| `GraphHopper` | GraphHopper URL and API key |
+| `BRouter` | BRouter service URL |
+
+## CLI Usage
+
+Simple OSRM route:
+
+```bash
+route-planner \
+  --method osrm \
+  --mode drive \
+  --objective fastest \
+  --addresses "Tour Eiffel, Paris" "Musee du Louvre, Paris" "Notre-Dame de Paris" \
+  --output parcours_paris \
+  --json-output parcours_paris.json
+```
+
+Bike route with BRouter:
+
+```bash
+route-planner \
+  --method brouter \
+  --mode bike \
+  --objective balanced \
+  --balanced-weight 0.4 \
+  --addresses "Bastille, Paris" "Canal Saint-Martin, Paris" "Montmartre, Paris"
+```
+
+GraphHopper with an API key:
+
+```bash
+route-planner \
+  --method graphhopper \
+  --graphhopper-api-key "$GRAPHHOPPER_API_KEY" \
+  --mode drive \
+  --avoid-tolls \
+  --addresses "Lyon" "Grenoble" "Chambery"
+```
+
+## Python Usage
 
 ```python
-from route_planner import Vehicule, RoutePlanner
+from route_planner import RoutePlanner, Vehicule
 
-adresses = [
+addresses = [
     "Tour Eiffel, Paris",
-    "Louvre, Paris",
-    "Notre-Dame de Paris"
+    "Musee du Louvre, Paris",
+    "Notre-Dame de Paris",
 ]
 
-vehicule = Vehicule(type_transport='drive', consommation_l_km=0.06, cout_energie=1.8)
-planner = RoutePlanner(vehicule, methode_routage='osrm')
-planner.generer_parcours(adresses, "parcours_paris")
+vehicle = Vehicule(
+    type_transport="drive",
+    consommation_l_km=0.06,
+    cout_energie=1.8,
+)
+
+planner = RoutePlanner(
+    vehicle,
+    methode_routage="osrm",
+    objective="balanced",
+    balanced_weight=0.6,
+    avoid_tolls=True,
+    budget_eur=12.0,
+)
+
+plan = planner.planifier_parcours(addresses)
+
+print(plan.ordered_addresses)
+print(plan.distance_km, plan.duration_h, plan.cost_eur)
+print(plan.stats)
 ```
 
----
+Export an HTML map:
 
-## ⚙️ Available Parameters
+```python
+planner.exporter.exporter(plan, filename="parcours_paris")
+```
 
-| Parameter         | Description                                      | Example        |
-|-------------------|--------------------------------------------------|----------------|
-| `type_transport`  | Transport mode (`drive`, `bike`, `walk`)         | `'drive'`      |
-| `methode_routage` | Routing engine (`osrm`, `osmnx`)                 | `'osrm'`       |
-| `consommation_l_km` | Consumption per km (L or kWh)                  | `0.06`         |
-| `cout_energie`    | Energy price (€ per L or kWh)                    | `1.8`          |
+## Available Routers
 
----
+| Method | Recommended use | Configuration |
+| --- | --- | --- |
+| `osrm` | fast and simple for car/bike/walking | none by default |
+| `osmnx` | local computation with an OpenStreetMap graph | none by default |
+| `valhalla` | advanced profiles, toll avoidance, possible multimodal routing | `VALHALLA_URL` or web field |
+| `graphhopper` | robust API, public service or local instance | `GRAPHHOPPER_API_KEY`, `GRAPHHOPPER_URL` |
+| `brouter` | especially useful for bike and walking routes | `BROUTER_URL` |
 
-## 🚀 Roadmap
+Environment variables are optional if you provide values through the web UI or CLI options.
 
-- [x] OSRM Integration
-- [ ] Full OSMnx Support
-- [ ] PDF / PNG Export
-- [ ] Add "Tourist Walking" Mode
-- [ ] GraphHopper Integration
-- [ ] Minimal Web Interface (Flask)
+```bash
+export VALHALLA_URL="http://localhost:8002"
+export GRAPHHOPPER_API_KEY="..."
+export GRAPHHOPPER_URL="https://graphhopper.com/api/1"
+export BROUTER_URL="https://brouter.de/brouter"
+```
 
----
+## Optimization Objectives
 
-## 🤝 Contributing
+| Objective | Description | Modes |
+| --- | --- | --- |
+| `fastest` | minimizes duration | car, bike, walking |
+| `shortest_km` | minimizes distance | car, bike, walking |
+| `cheapest` | minimizes energy cost | car only |
+| `balanced` | time/distance compromise | car, bike, walking |
 
-Contributions are welcome!  
-Feel free to open issues or submit pull requests to improve the project.
+For `balanced`, `balanced_weight` controls how much duration matters:
 
----
+- `0.0`: prioritize distance.
+- `0.5`: equal compromise.
+- `1.0`: prioritize duration.
 
-## 📄 License
+## Exports
 
-This project is licensed under the **MIT License** — feel free to use, modify, and share it.
+After a web calculation, Route Planner automatically generates:
 
----
+| Format | Content |
+| --- | --- |
+| HTML | interactive Folium map |
+| PDF | readable route sheet |
+| JSON | complete route plan data |
 
-## 🙌 Acknowledgements
+The JSON payload includes:
 
-- [OSRM Project](http://project-osrm.org/)
+```json
+{
+  "ordered_addresses": ["A", "B", "C"],
+  "distance_km": 12.34,
+  "duration_h": 0.5,
+  "cost_eur": 3.21,
+  "routing_engine": "OSRMRouter",
+  "optimization_strategy": "exact_dp",
+  "stats": {}
+}
+```
+
+## Architecture
+
+```text
+src/route_planner/
+├── route_planner.py          # business orchestration
+├── vehicule.py               # transport profile
+├── webapp.py                 # WSGI web interface
+├── cli.py                    # command-line interface
+├── models.py                 # RoutePlan, RouteLeg, preferences
+├── optimization/
+│   └── heuristics.py         # stop order optimization
+├── routers/
+│   ├── factory.py            # dynamic engine selection
+│   ├── interface.py          # shared contract
+│   ├── osrm_router.py
+│   ├── osmnx_router.py
+│   └── http_routers.py       # Valhalla, GraphHopper, BRouter
+└── exporters/
+    ├── html_exporter.py
+    ├── pdf_exporter.py
+    └── json_exporter.py
+```
+
+## Tests
+
+```bash
+pytest
+```
+
+The test suite covers:
+
+- route calculation and optimization,
+- routers and factory,
+- web interface,
+- HTML/PDF/JSON exports,
+- SQLite cache,
+- transport-mode-specific statistics.
+
+## Troubleshooting
+
+### `GraphHopper requiert GRAPHHOPPER_API_KEY`
+
+The public GraphHopper service requires an API key. Provide it through the web UI, CLI, or environment:
+
+```bash
+export GRAPHHOPPER_API_KEY="..."
+```
+
+### `graph_from_bbox() got an unexpected keyword argument 'north'`
+
+Recent OSMnx versions use a bbox tuple. This project is compatible with OSMnx 2.x.
+
+### Valhalla does not respond
+
+By default, Route Planner looks for Valhalla at:
+
+```text
+http://localhost:8002
+```
+
+Provide another URL through the web UI, `--valhalla-url`, or `VALHALLA_URL`.
+
+## Contributing
+
+Contributions are welcome:
+
+1. Fork the project.
+2. Create a short, explicit branch.
+3. Add or update tests.
+4. Run `pytest`.
+5. Open a pull request.
+
+## License
+
+Distributed under the MIT license. See [LICENSE](LICENSE).
+
+## Credits
+
 - [OpenStreetMap](https://www.openstreetmap.org/)
+- [OSRM](https://project-osrm.org/)
+- [OSMnx](https://osmnx.readthedocs.io/)
+- [Valhalla](https://valhalla.github.io/valhalla/)
+- [GraphHopper](https://www.graphhopper.com/)
+- [BRouter](https://brouter.de/)
 - [Folium](https://python-visualization.github.io/folium/)
-
-> ⭐ Don't forget to leave a **star** if you find this project useful!
