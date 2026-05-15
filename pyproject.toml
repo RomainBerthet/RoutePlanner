@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "route-planner"
-version = "0.1.0"
+version = "0.4.0"
 description = "Flexible route planner with dynamic routing engine selection (OSRM, OSMnx, ...)."
 authors = [
     { name="Romain Berthet", email="berthet.romain3@gmail.com" }
@@ -21,4 +21,5 @@ dependencies = [
 ]
 
 [project.scripts]
-route-planner = "route_planner.main:main"
+route-planner = "route_planner.cli:main"
+route-planner-web = "route_planner.webapp:main"
