@@ -73,6 +73,9 @@ def run(host: str = "127.0.0.1", port: int = 8000) -> None:
 
 
 def main(argv: List[str] | None = None) -> int:
+    from route_planner.config import load_env
+
+    load_env()
     parser = argparse.ArgumentParser(prog="route-planner-web")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
@@ -98,13 +101,34 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
         <div class="layout">
           <section class="panel">
             <form method="post" action="/plan" class="form-grid" id="planner-form">
-              <section class="field-group">
+              <div class="mode-switch" role="tablist" aria-label="Comment definir l'itineraire">
+                <label class="{'active' if values.get('input_mode', 'addresses') != 'ai' else ''}">
+                  <input type="radio" name="input_mode" value="addresses" {"" if values.get("input_mode") == "ai" else "checked"}>
+                  <span>📍 Saisir des adresses</span>
+                </label>
+                <label class="{'active' if values.get('input_mode') == 'ai' else ''}">
+                  <input type="radio" name="input_mode" value="ai" {"checked" if values.get("input_mode") == "ai" else ""}>
+                  <span>✨ Decrire mon voyage (IA)</span>
+                </label>
+              </div>
+
+              <section class="field-group source source-addresses{' is-hidden' if values.get('input_mode') == 'ai' else ''}">
                 <div class="section-title">
                   <h3>Adresses</h3>
                   <p>Ajoutez au moins deux points. L'ordre peut etre optimise automatiquement.</p>
                 </div>
                 <div id="addresses" class="addresses">{addresses}</div>
                 <button type="button" class="secondary add-btn" onclick="addAddress()">+ Ajouter une adresse</button>
+              </section>
+
+              <section class="field-group source source-ai ai-config{'' if values.get('input_mode') == 'ai' else ' is-hidden'}">
+                <div class="section-title">
+                  <h3>Decrire le voyage</h3>
+                  <p>Racontez votre voyage en langage naturel : l'IA en deduit les etapes, le mode et l'objectif. Provider et modele sont ceux configures cote serveur (.env).</p>
+                </div>
+                <label class="sr-label">Votre voyage
+                  <textarea name="ai_prompt" rows="4" placeholder="Ex : Road trip detente de 8 jours en voiture depuis Tavaux vers la Suisse, l'Italie et la Slovenie — lacs, terrasses et baignades.">{html.escape(values.get('ai_prompt', ''))}</textarea>
+                </label>
               </section>
 
               <section class="field-group">
@@ -219,14 +243,14 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
               <section class="field-group mode-config" data-modes="drive">
                 <div class="section-title">
                   <h3>Profil vehicule</h3>
-                  <p>Visible pour la voiture: la vitesse, le cout et les peages peuvent influencer le resultat.</p>
+                  <p>Sert au calcul du cout et du CO2 en voiture. Valeurs par defaut : une berline essence typique.</p>
                 </div>
                 <div class="split">
-                  <label>Consommation / km
-                    <input name="consumption" type="number" step="0.001" min="0" value="{html.escape(values.get('consumption', '0.06'))}">
+                  <label>Consommation (L / 100 km)
+                    <input name="consumption_100km" type="number" step="0.1" min="0" value="{html.escape(values.get('consumption_100km', '6.5'))}">
                   </label>
-                  <label>Cout energie
-                    <input name="energy_cost" type="number" step="0.01" min="0" value="{html.escape(values.get('energy_cost', '1.8'))}">
+                  <label>Prix carburant (€ / L)
+                    <input name="energy_cost" type="number" step="0.01" min="0" value="{html.escape(values.get('energy_cost', '1.85'))}">
                   </label>
                 </div>
               </section>
@@ -255,47 +279,27 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="field-group ai-config">
-                <div class="section-title">
-                  <h3>Assistant IA (optionnel)</h3>
-                  <p>Decrivez votre voyage en langage naturel : l'IA propose les etapes, le mode et l'objectif. Elle peut aussi rediger le contenu du carnet. Necessite une cle API cote serveur.</p>
-                </div>
-                <label>Decrire le voyage
-                  <textarea name="ai_prompt" placeholder="Ex: Road trip detente de 8 jours en voiture depuis Tavaux vers la Suisse, l'Italie et la Slovenie, lacs et terrasses.">{html.escape(values.get('ai_prompt', ''))}</textarea>
-                </label>
-                <div class="split">
-                  <label>Provider IA
-                    <select name="ai_provider">
-                      {_select_option("anthropic", values.get("ai_provider", "anthropic"), "Anthropic (Claude)")}
-                      {_select_option("openai", values.get("ai_provider", "anthropic"), "OpenAI")}
-                      {_select_option("vllm", values.get("ai_provider", "anthropic"), "vLLM / local")}
-                    </select>
-                  </label>
-                  <label>Modele (optionnel)
-                    <input name="ai_model" type="text" value="{html.escape(values.get('ai_model', ''))}" placeholder="Defaut selon le provider">
-                  </label>
-                </div>
-                <label class="checkbox inline">
-                  <input type="checkbox" name="ai_enrich" {"checked" if values.get("ai_enrich") else ""}>
-                  Rediger le contenu du carnet avec l'IA (astuces, vigilance, budget, secrets)
-                </label>
-              </section>
-
               <section class="field-group guide-config">
                 <div class="section-title">
                   <h3>Carnet de voyage</h3>
                   <p>Genere une page illustree facon guide, avec des recommandations de lieux a visiter autour de chaque etape (donnees OpenStreetMap).</p>
                 </div>
                 <label class="checkbox inline">
-                  <input type="checkbox" name="guide" {"checked" if values.get("guide") else ""}>
+                  <input type="checkbox" name="guide" id="guide-toggle" {"checked" if values.get("guide") else ""}>
                   Generer un carnet de voyage enrichi
                 </label>
-                <div class="split">
-                  <label>Rayon de recherche (m)
-                    <input name="recommend_radius" type="number" step="500" min="500" value="{html.escape(values.get('recommend_radius', '8000'))}">
-                  </label>
-                  <label>Lieux max par etape
-                    <input name="recommend_limit" type="number" step="1" min="1" value="{html.escape(values.get('recommend_limit', '8'))}">
+                <div class="guide-detail{'' if values.get('guide') else ' is-hidden'}">
+                  <div class="split">
+                    <label>Rayon de recherche (m)
+                      <input name="recommend_radius" type="number" step="500" min="500" value="{html.escape(values.get('recommend_radius', '8000'))}">
+                    </label>
+                    <label>Lieux max par etape
+                      <input name="recommend_limit" type="number" step="1" min="1" value="{html.escape(values.get('recommend_limit', '8'))}">
+                    </label>
+                  </div>
+                  <label class="checkbox inline">
+                    <input type="checkbox" name="ai_enrich" {"checked" if values.get("ai_enrich") else ""}>
+                    ✨ Rediger le contenu du carnet avec l'IA (astuces, vigilance, budget, secrets)
                   </label>
                 </div>
               </section>
@@ -440,6 +444,26 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
           balanced.closest('label').classList.toggle('is-muted', objective !== 'balanced');
         }}
 
+        function toggleGroup(el, active) {{
+          el.classList.toggle('is-hidden', !active);
+          el.querySelectorAll('input, select, textarea').forEach((f) => {{ f.disabled = !active; }});
+        }}
+
+        function updateInputMode() {{
+          const checked = document.querySelector('input[name="input_mode"]:checked');
+          const mode = checked ? checked.value : 'addresses';
+          document.querySelectorAll('.source-addresses').forEach((el) => toggleGroup(el, mode === 'addresses'));
+          document.querySelectorAll('.source-ai').forEach((el) => toggleGroup(el, mode === 'ai'));
+          document.querySelectorAll('.mode-switch label').forEach((l) => {{
+            l.classList.toggle('active', l.querySelector('input').checked);
+          }});
+        }}
+
+        function updateGuideDetail() {{
+          const on = document.getElementById('guide-toggle').checked;
+          toggleGroup(document.querySelector('.guide-detail'), on);
+        }}
+
         window.addEventListener('load', () => {{
           if (!document.querySelector('.address-row')) {{
             addAddress();
@@ -448,9 +472,13 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
           updateMethodHelp();
           updateModeConfig();
           updateObjectiveDefaults();
+          updateInputMode();
+          updateGuideDetail();
           document.getElementById('method').addEventListener('change', updateMethodHelp);
           document.getElementById('mode').addEventListener('change', updateModeConfig);
           document.getElementById('objective').addEventListener('change', updateObjectiveDefaults);
+          document.querySelectorAll('input[name="input_mode"]').forEach((r) => r.addEventListener('change', updateInputMode));
+          document.getElementById('guide-toggle').addEventListener('change', updateGuideDetail);
         }});
         </script>
         """,
@@ -462,14 +490,14 @@ def _handle_plan(environ):
     payload = _read_form(environ)
     try:
         ai_prompt = payload.get("ai_prompt", [""])[0].strip()
-        suggestion = _ai_itinerary(payload, ai_prompt) if ai_prompt else None
+        suggestion = _ai_itinerary(ai_prompt) if ai_prompt else None
         mode = suggestion.transport_mode if suggestion else payload.get("mode", ["drive"])[0]
         objective = suggestion.objective if suggestion else payload.get("objective", ["fastest"])[0]
         addresses = suggestion.stops if suggestion else _parse_addresses(payload)
         vehicule = Vehicule(
             type_transport=mode,
-            consommation_l_km=float(payload.get("consumption", ["0.06"])[0]),
-            cout_energie=float(payload.get("energy_cost", ["1.8"])[0]),
+            consommation_l_km=_consumption_l_km(payload),
+            cout_energie=float(payload.get("energy_cost", ["1.85"])[0] or 1.85),
         )
         budget_value = payload.get("budget", [""])[0].strip()
         budget = float(budget_value) if budget_value else None
@@ -488,7 +516,7 @@ def _handle_plan(environ):
         if "guide" in payload:
             recommendations = _build_recommendations(plan, payload)
             if "ai_enrich" in payload:
-                guide_content = _build_ai_service(payload).write_guide_content(
+                guide_content = _build_ai_service().write_guide_content(
                     plan, recommendations, request=ai_prompt
                 )
         guide_extras = {
@@ -507,8 +535,8 @@ def _handle_plan(environ):
             "method": payload.get("method", ["osrm"])[0],
             "mode": payload.get("mode", ["drive"])[0],
             "objective": payload.get("objective", ["fastest"])[0],
-            "consumption": payload.get("consumption", ["0.06"])[0],
-            "energy_cost": payload.get("energy_cost", ["1.8"])[0],
+            "consumption_100km": payload.get("consumption_100km", ["6.5"])[0],
+            "energy_cost": payload.get("energy_cost", ["1.85"])[0],
             "budget": payload.get("budget", [""])[0],
             "balanced_weight": payload.get("balanced_weight", ["0.5"])[0],
             "valhalla_url": payload.get("valhalla_url", [""])[0],
@@ -523,9 +551,8 @@ def _handle_plan(environ):
             "recommend_radius": payload.get("recommend_radius", ["8000"])[0],
             "recommend_limit": payload.get("recommend_limit", ["8"])[0],
             "ai_prompt": payload.get("ai_prompt", [""])[0],
-            "ai_provider": payload.get("ai_provider", ["anthropic"])[0],
-            "ai_model": payload.get("ai_model", [""])[0],
             "ai_enrich": "ai_enrich" in payload,
+            "input_mode": payload.get("input_mode", ["addresses"])[0],
         }
         return _render_form(values, error=str(exc))
 
@@ -543,26 +570,25 @@ def _build_recommendations(plan: RoutePlan, payload: Dict[str, List[str]]):
     return service.recommend_for_plan(plan)
 
 
-def _build_ai_service(payload: Dict[str, List[str]]):
+def _consumption_l_km(payload: Dict[str, List[str]]) -> float:
+    """Read consumption entered as L/100 km and convert to L/km."""
+    raw = payload.get("consumption_100km", ["6.5"])[0].strip() or "6.5"
+    try:
+        return float(raw) / 100.0
+    except ValueError:
+        return 0.065
+
+
+def _build_ai_service():
     from route_planner.ai.factory import LLMFactory
     from route_planner.ai.service import TravelIntelligence
 
-    options = {}
-    model = payload.get("ai_model", [""])[0].strip()
-    api_key = payload.get("ai_api_key", [""])[0].strip()
-    base_url = payload.get("ai_base_url", [""])[0].strip()
-    if model:
-        options["model"] = model
-    if api_key:
-        options["api_key"] = api_key
-    if base_url:
-        options["base_url"] = base_url
-    provider = LLMFactory.get_provider(payload.get("ai_provider", ["anthropic"])[0], **options)
-    return TravelIntelligence(provider)
+    # Provider and model are read from the server config (.env / environment).
+    return TravelIntelligence(LLMFactory.from_env())
 
 
-def _ai_itinerary(payload: Dict[str, List[str]], prompt: str):
-    return _build_ai_service(payload).suggest_itinerary(prompt)
+def _ai_itinerary(prompt: str):
+    return _build_ai_service().suggest_itinerary(prompt)
 
 
 def _router_options_from_payload(payload: Dict[str, List[str]]) -> Dict[str, str]:
@@ -1159,9 +1185,40 @@ def _page(title: str, content: str) -> str:
           padding: 2px 7px;
           border-radius: 999px;
         }}
-        .mode-config.is-hidden, .method-config.is-hidden {{
+        .mode-config.is-hidden, .method-config.is-hidden, .is-hidden {{
           display: none;
         }}
+        .mode-switch {{
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+          padding: 6px;
+          background: var(--group);
+          border: 1px solid var(--line);
+          border-radius: var(--radius-sm);
+        }}
+        .mode-switch label {{
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 11px 12px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 14px;
+          color: var(--muted);
+          cursor: pointer;
+          transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+        }}
+        .mode-switch label:hover {{ color: var(--text); }}
+        .mode-switch label.active {{
+          background: #fff;
+          color: var(--accent-dark);
+          box-shadow: 0 2px 8px rgba(20, 32, 51, 0.08);
+        }}
+        .mode-switch input {{ position: absolute; opacity: 0; width: 0; height: 0; }}
+        .sr-label {{ gap: 0; }}
+        .guide-detail {{ display: grid; gap: 14px; }}
         .is-muted {{
           opacity: 0.55;
         }}

@@ -26,8 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--avoid-tolls", action="store_true")
     parser.add_argument("--budget", type=float, default=None)
     parser.add_argument("--balanced-weight", type=float, default=0.5)
-    parser.add_argument("--consumption", type=float, default=0.06)
-    parser.add_argument("--energy-cost", type=float, default=1.8)
+    parser.add_argument("--consumption", type=float, default=0.065, help="Consommation en L/km (0.065 = 6.5 L/100 km)")
+    parser.add_argument("--energy-cost", type=float, default=1.85, help="Prix du carburant en €/L")
     parser.add_argument("--valhalla-url", default="")
     parser.add_argument("--graphhopper-url", default="")
     parser.add_argument("--graphhopper-api-key", default="")
@@ -65,10 +65,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Utilise l'IA pour rediger le contenu du carnet (astuces, vigilance, budget, secrets)",
     )
-    parser.add_argument("--ai-provider", default="anthropic", choices=["anthropic", "openai", "vllm"])
-    parser.add_argument("--ai-model", default="", help="Modele IA (defaut selon le provider)")
-    parser.add_argument("--ai-base-url", default="", help="URL de base (OpenAI-compatible / vLLM)")
-    parser.add_argument("--ai-api-key", default="", help="Cle API du provider IA (sinon variable d'environnement)")
     return parser
 
 
@@ -87,6 +83,9 @@ def load_addresses(args: argparse.Namespace) -> List[str]:
 
 
 def main(argv: List[str] | None = None) -> int:
+    from route_planner.config import load_env
+
+    load_env()
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -127,23 +126,17 @@ def main(argv: List[str] | None = None) -> int:
     return 0
 
 
-def _build_ai_service(args: argparse.Namespace):
+def _build_ai_service():
     from route_planner.ai.factory import LLMFactory
     from route_planner.ai.service import TravelIntelligence
 
-    options = {}
-    if args.ai_model:
-        options["model"] = args.ai_model
-    if args.ai_api_key:
-        options["api_key"] = args.ai_api_key
-    if args.ai_base_url:
-        options["base_url"] = args.ai_base_url
-    provider = LLMFactory.get_provider(args.ai_provider, **options)
-    return TravelIntelligence(provider)
+    # Provider and model come from the system config (.env / environment):
+    # AI_PROVIDER + the provider's own vars (VLLM_URL/VLLM_MODEL, etc.).
+    return TravelIntelligence(LLMFactory.from_env())
 
 
 def _ai_itinerary(args: argparse.Namespace):
-    return _build_ai_service(args).suggest_itinerary(args.ai_prompt)
+    return _build_ai_service().suggest_itinerary(args.ai_prompt)
 
 
 def _generate_guide(plan, args: argparse.Namespace, suggestion=None) -> None:
@@ -162,7 +155,7 @@ def _generate_guide(plan, args: argparse.Namespace, suggestion=None) -> None:
 
     guide_content = None
     if args.ai_enrich:
-        guide_content = _build_ai_service(args).write_guide_content(
+        guide_content = _build_ai_service().write_guide_content(
             plan, recommendations, request=args.ai_prompt
         )
 

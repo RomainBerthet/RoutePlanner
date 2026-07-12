@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from route_planner.ai.providers.anthropic_provider import AnthropicProvider
@@ -24,3 +25,15 @@ class LLMFactory:
         raise ValueError(
             f"Provider IA inconnu : {name}. Choix possibles : {', '.join(PROVIDERS)}"
         )
+
+    @staticmethod
+    def from_env() -> ILLMProvider:
+        """Build the provider from the system config (``AI_PROVIDER``).
+
+        The model, base URL and API key are read by each provider from its own
+        environment variables (``ANTHROPIC_MODEL``, ``OPENAI_MODEL`` /
+        ``OPENAI_BASE_URL``, ``VLLM_URL`` / ``VLLM_MODEL``, ...), so callers
+        never have to pass them explicitly.
+        """
+
+        return LLMFactory.get_provider(os.getenv("AI_PROVIDER", "anthropic"))

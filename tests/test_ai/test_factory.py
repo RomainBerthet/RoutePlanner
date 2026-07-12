@@ -28,3 +28,18 @@ def test_provider_options_are_forwarded():
     provider = LLMFactory.get_provider("openai", model="gpt-4o", base_url="http://x/v1")
     assert provider.model == "gpt-4o"
     assert provider.base_url == "http://x/v1"
+
+
+def test_from_env_reads_ai_provider(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "vllm")
+    monkeypatch.setenv("VLLM_MODEL", "Qwen/Qwen3.5-32B-Instruct")
+    monkeypatch.setenv("VLLM_URL", "http://localhost:8000/v1")
+    provider = LLMFactory.from_env()
+    assert isinstance(provider, VLLMProvider)
+    assert provider.model == "Qwen/Qwen3.5-32B-Instruct"
+    assert provider.base_url == "http://localhost:8000/v1"
+
+
+def test_from_env_defaults_to_anthropic(monkeypatch):
+    monkeypatch.delenv("AI_PROVIDER", raising=False)
+    assert isinstance(LLMFactory.from_env(), AnthropicProvider)

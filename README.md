@@ -202,20 +202,37 @@ Les SDK sont **optionnels** — installez seulement celui du backend choisi :
 
 ```bash
 pip install -e ".[anthropic]"   # ou ".[openai]", ou ".[ai]" pour les deux
-export ANTHROPIC_API_KEY="..."   # ou OPENAI_API_KEY / OPENAI_BASE_URL / VLLM_URL
+```
+
+La configuration se fait par variables d'environnement, chargees
+automatiquement depuis un fichier `.env` (via `python-dotenv`) :
+
+```bash
+cp .env.example .env    # puis editez les valeurs
+```
+
+Le **provider et le modele sont definis dans le `.env`** (config systeme), pas
+dans l'interface : l'utilisateur decrit seulement son voyage. Choisissez le
+backend via `AI_PROVIDER`. Exemple pour un **vLLM local servant Qwen 3.5** :
+
+```dotenv
+AI_PROVIDER=vllm
+VLLM_URL=http://localhost:8000/v1
+VLLM_MODEL=Qwen/Qwen3.5-32B-Instruct
+VLLM_API_KEY=EMPTY
 ```
 
 En CLI (l'IA propose les etapes, puis redige le carnet) :
 
 ```bash
+vllm serve Qwen/Qwen3.5-32B-Instruct --port 8000   # serveur du .env ci-dessus
 route-planner \
   --ai-prompt "Road trip detente de 8 jours en voiture depuis Tavaux vers la Suisse, l'Italie et la Slovenie : lacs, terrasses et baignades" \
-  --ai-provider anthropic \
   --output roadtrip --guide --ai-enrich
 # -> etapes deduites, roadtrip.html (carte) et roadtrip-carnet.html (guide complet)
 ```
 
-En Python :
+En Python (le provider vient de l'environnement via `LLMFactory.from_env()`) :
 
 ```python
 from route_planner import (
@@ -223,7 +240,7 @@ from route_planner import (
     TravelGuideExporter, LLMFactory, TravelIntelligence,
 )
 
-ai = TravelIntelligence(LLMFactory.get_provider("anthropic"))  # ou "openai" / "vllm"
+ai = TravelIntelligence(LLMFactory.from_env())  # provider = AI_PROVIDER
 suggestion = ai.suggest_itinerary("Week-end velo autour d'Annecy, objectif equilibre")
 
 planner = RoutePlanner(Vehicule(suggestion.transport_mode), methode_routage="osrm")
@@ -237,9 +254,9 @@ TravelGuideExporter().exporter(
 )
 ```
 
-Providers : `--ai-provider anthropic|openai|vllm`, modele via `--ai-model`, URL
-via `--ai-base-url` (vLLM/serveur local), cle via `--ai-api-key` (sinon variable
-d'environnement). L'interface web expose un champ « Assistant IA » equivalent.
+Cote CLI comme web, seules l'intention comptent : `--ai-prompt` / champ « Decrire
+le voyage » et `--ai-enrich` / case « Rediger le contenu du carnet ». Le reste
+(provider, modele, URL, cle) vient du `.env`.
 
 ## Routeurs Disponibles
 
