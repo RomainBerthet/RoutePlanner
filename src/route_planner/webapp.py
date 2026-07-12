@@ -13,7 +13,9 @@ from wsgiref.simple_server import make_server
 from route_planner.exporters.html_exporter import HTMLExporter
 from route_planner.exporters.json_exporter import JSONExporter
 from route_planner.exporters.pdf_exporter import PDFExporter
+from route_planner.exporters.travel_guide_exporter import TravelGuideExporter
 from route_planner.models import RoutePlan
+from route_planner.recommendations.service import RecommendationService
 from route_planner.route_planner import RoutePlanner
 from route_planner.vehicule import Vehicule
 
@@ -239,6 +241,51 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
+              <section class="ai-config">
+                <div class="section-title">
+                  <h3>Assistant IA (optionnel)</h3>
+                  <p>Decrivez votre voyage en langage naturel : l'IA propose les etapes, le mode et l'objectif. Elle peut aussi rediger le contenu du carnet. Necessite une cle API cote serveur.</p>
+                </div>
+                <label>Decrire le voyage
+                  <textarea name="ai_prompt" placeholder="Ex: Road trip detente de 8 jours en voiture depuis Tavaux vers la Suisse, l'Italie et la Slovenie, lacs et terrasses.">{html.escape(values.get('ai_prompt', ''))}</textarea>
+                </label>
+                <div class="split">
+                  <label>Provider IA
+                    <select name="ai_provider">
+                      {_select_option("anthropic", values.get("ai_provider", "anthropic"), "Anthropic (Claude)")}
+                      {_select_option("openai", values.get("ai_provider", "anthropic"), "OpenAI")}
+                      {_select_option("vllm", values.get("ai_provider", "anthropic"), "vLLM / local")}
+                    </select>
+                  </label>
+                  <label>Modele (optionnel)
+                    <input name="ai_model" type="text" value="{html.escape(values.get('ai_model', ''))}" placeholder="Defaut selon le provider">
+                  </label>
+                </div>
+                <label class="checkbox inline">
+                  <input type="checkbox" name="ai_enrich" {"checked" if values.get("ai_enrich") else ""}>
+                  Rediger le contenu du carnet avec l'IA (astuces, vigilance, budget, secrets)
+                </label>
+              </section>
+
+              <section class="guide-config">
+                <div class="section-title">
+                  <h3>Carnet de voyage</h3>
+                  <p>Genere une page illustree facon guide, avec des recommandations de lieux a visiter autour de chaque etape (donnees OpenStreetMap).</p>
+                </div>
+                <label class="checkbox inline">
+                  <input type="checkbox" name="guide" {"checked" if values.get("guide") else ""}>
+                  Generer un carnet de voyage enrichi
+                </label>
+                <div class="split">
+                  <label>Rayon de recherche (m)
+                    <input name="recommend_radius" type="number" step="500" min="500" value="{html.escape(values.get('recommend_radius', '8000'))}">
+                  </label>
+                  <label>Lieux max par etape
+                    <input name="recommend_limit" type="number" step="1" min="1" value="{html.escape(values.get('recommend_limit', '8'))}">
+                  </label>
+                </div>
+              </section>
+
               <button type="submit" class="primary">Calculer</button>
             </form>
             {f'<div class="error">{html.escape(error)}</div>' if error else ''}
@@ -400,9 +447,13 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
 def _handle_plan(environ):
     payload = _read_form(environ)
     try:
-        addresses = _parse_addresses(payload)
+        ai_prompt = payload.get("ai_prompt", [""])[0].strip()
+        suggestion = _ai_itinerary(payload, ai_prompt) if ai_prompt else None
+        mode = suggestion.transport_mode if suggestion else payload.get("mode", ["drive"])[0]
+        objective = suggestion.objective if suggestion else payload.get("objective", ["fastest"])[0]
+        addresses = suggestion.stops if suggestion else _parse_addresses(payload)
         vehicule = Vehicule(
-            type_transport=payload.get("mode", ["drive"])[0],
+            type_transport=mode,
             consommation_l_km=float(payload.get("consumption", ["0.06"])[0]),
             cout_energie=float(payload.get("energy_cost", ["1.8"])[0]),
         )
@@ -411,14 +462,29 @@ def _handle_plan(environ):
         planner = RoutePlanner(
             vehicule,
             methode_routage=payload.get("method", ["osrm"])[0],
-            objective=payload.get("objective", ["fastest"])[0],
+            objective=objective,
             avoid_tolls="avoid_tolls" in payload,
             budget_eur=budget,
             balanced_weight=float(payload.get("balanced_weight", ["0.5"])[0]),
             router_options=_router_options_from_payload(payload),
         )
         plan = planner.planifier_parcours(addresses)
-        exports = _save_exports(plan)
+        recommendations = []
+        guide_content = None
+        if "guide" in payload:
+            recommendations = _build_recommendations(plan, payload)
+            if "ai_enrich" in payload:
+                guide_content = _build_ai_service(payload).write_guide_content(
+                    plan, recommendations, request=ai_prompt
+                )
+        guide_extras = {
+            "title": suggestion.title if suggestion and suggestion.title else None,
+            "subtitle": suggestion.subtitle if suggestion and suggestion.subtitle else None,
+            "guide_content": guide_content,
+        }
+        exports = _save_exports(
+            plan, recommendations if "guide" in payload else None, guide_extras
+        )
         status, headers, body = _render_result(plan, exports)
         return status, headers, body
     except Exception as exc:
@@ -439,8 +505,50 @@ def _handle_plan(environ):
             "json_output": payload.get("json_output", [""])[0],
             "skip_html": "skip_html" in payload,
             "avoid_tolls": "avoid_tolls" in payload,
+            "guide": "guide" in payload,
+            "recommend_radius": payload.get("recommend_radius", ["8000"])[0],
+            "recommend_limit": payload.get("recommend_limit", ["8"])[0],
+            "ai_prompt": payload.get("ai_prompt", [""])[0],
+            "ai_provider": payload.get("ai_provider", ["anthropic"])[0],
+            "ai_model": payload.get("ai_model", [""])[0],
+            "ai_enrich": "ai_enrich" in payload,
         }
         return _render_form(values, error=str(exc))
+
+
+def _build_recommendations(plan: RoutePlan, payload: Dict[str, List[str]]):
+    try:
+        radius = int(payload.get("recommend_radius", ["8000"])[0] or 8000)
+    except ValueError:
+        radius = 8000
+    try:
+        limit = int(payload.get("recommend_limit", ["8"])[0] or 8)
+    except ValueError:
+        limit = 8
+    service = RecommendationService(radius_m=radius, per_stop_limit=limit)
+    return service.recommend_for_plan(plan)
+
+
+def _build_ai_service(payload: Dict[str, List[str]]):
+    from route_planner.ai.factory import LLMFactory
+    from route_planner.ai.service import TravelIntelligence
+
+    options = {}
+    model = payload.get("ai_model", [""])[0].strip()
+    api_key = payload.get("ai_api_key", [""])[0].strip()
+    base_url = payload.get("ai_base_url", [""])[0].strip()
+    if model:
+        options["model"] = model
+    if api_key:
+        options["api_key"] = api_key
+    if base_url:
+        options["base_url"] = base_url
+    provider = LLMFactory.get_provider(payload.get("ai_provider", ["anthropic"])[0], **options)
+    return TravelIntelligence(provider)
+
+
+def _ai_itinerary(payload: Dict[str, List[str]], prompt: str):
+    return _build_ai_service(payload).suggest_itinerary(prompt)
 
 
 def _router_options_from_payload(payload: Dict[str, List[str]]) -> Dict[str, str]:
@@ -488,7 +596,19 @@ def _render_result(plan: RoutePlan, exports: Dict[str, str]):
             {f'<a class="export-card" href="{html.escape(exports["html"])}" download>Télécharger HTML</a>' if exports.get("html") else ''}
             {f'<a class="export-card" href="{html.escape(exports["pdf"])}" download>Feuille de route PDF</a>' if exports.get("pdf") else ''}
             {f'<a class="export-card" href="{html.escape(exports["json"])}" download>Données JSON</a>' if exports.get("json") else ''}
+            {f'<a class="export-card" href="{html.escape(exports["guide"])}" target="_blank" rel="noopener">Carnet de voyage ↗</a>' if exports.get("guide") else ''}
           </div>
+        </section>
+        """
+    guide_block = ""
+    if exports.get("guide"):
+        guide_block = f"""
+        <section class="panel">
+          <div class="section-title">
+            <h2>Carnet de voyage</h2>
+            <p>Page illustree avec les lieux a visiter autour de chaque etape (OpenStreetMap). Ouvrez-la en plein ecran via le lien ci-dessus.</p>
+          </div>
+          <iframe src="{html.escape(exports['guide'])}" class="map-frame"></iframe>
         </section>
         """
     top_stats_html = _render_top_stats(plan)
@@ -512,6 +632,7 @@ def _render_result(plan: RoutePlan, exports: Dict[str, str]):
           {map_block}
         </section>
         {export_cards}
+        {guide_block}
         <section class="panel">
           <h2>Etapes</h2>
           <table>
@@ -641,7 +762,7 @@ def _serve_asset(path: str):
     return "200 OK", [("Content-Type", content_type)], file_path.read_bytes()
 
 
-def _save_exports(plan: RoutePlan) -> Dict[str, str]:
+def _save_exports(plan: RoutePlan, recommendations=None, guide_extras=None) -> Dict[str, str]:
     safe_name = f"route-{uuid.uuid4().hex[:8]}"
     html_path = EXPORT_ROOT / f"{safe_name}.html"
     json_path = EXPORT_ROOT / f"{safe_name}.json"
@@ -651,11 +772,26 @@ def _save_exports(plan: RoutePlan) -> Dict[str, str]:
     JSONExporter().exporter(plan, json_path)
     PDFExporter().exporter(plan, pdf_path)
 
-    return {
+    exports = {
         "html": f"/files/{html_path.name}",
         "json": f"/files/{json_path.name}",
         "pdf": f"/files/{pdf_path.name}",
     }
+
+    if recommendations is not None:
+        extras = guide_extras or {}
+        guide_path = EXPORT_ROOT / f"{safe_name}-carnet.html"
+        TravelGuideExporter().exporter(
+            plan,
+            recommendations,
+            filename=str(guide_path.with_suffix("")),
+            title=extras.get("title"),
+            subtitle=extras.get("subtitle"),
+            guide_content=extras.get("guide_content"),
+        )
+        exports["guide"] = f"/files/{guide_path.name}"
+
+    return exports
 
 
 def _read_form(environ) -> Dict[str, List[str]]:

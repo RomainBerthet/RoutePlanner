@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "route-planner"
-version = "0.4.0"
-description = "Flexible route planner with dynamic routing engine selection (OSRM, OSMnx, ...)."
+version = "0.6.0"
+description = "Flexible route planner with dynamic routing engine selection (OSRM, OSMnx, ...) and POI recommendations."
 authors = [
     { name="Romain Berthet", email="berthet.romain3@gmail.com" }
 ]
@@ -19,6 +19,11 @@ dependencies = [
     "osmnx",
     "geopandas"
 ]
+
+[project.optional-dependencies]
+anthropic = ["anthropic"]
+openai = ["openai"]
+ai = ["anthropic", "openai"]
 
 [project.scripts]
 route-planner = "route_planner.cli:main"
