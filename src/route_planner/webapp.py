@@ -98,15 +98,22 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
         <div class="layout">
           <section class="panel">
             <form method="post" action="/plan" class="form-grid" id="planner-form">
-              <div class="section-title">
-                <h3>Adresses</h3>
-                <p>Ajoutez au moins deux points. L'ordre peut etre optimise automatiquement.</p>
-              </div>
-              <div id="addresses" class="addresses">{addresses}</div>
-              <button type="button" class="secondary" onclick="addAddress()">Ajouter une adresse</button>
+              <section class="field-group">
+                <div class="section-title">
+                  <h3>Adresses</h3>
+                  <p>Ajoutez au moins deux points. L'ordre peut etre optimise automatiquement.</p>
+                </div>
+                <div id="addresses" class="addresses">{addresses}</div>
+                <button type="button" class="secondary add-btn" onclick="addAddress()">+ Ajouter une adresse</button>
+              </section>
 
-              <div class="split">
-                <label>Methode de routage
+              <section class="field-group">
+                <div class="section-title">
+                  <h3>Moteur &amp; mode</h3>
+                  <p>Choisissez le moteur de routage et le mode de deplacement.</p>
+                </div>
+                <div class="split">
+                  <label>Methode de routage
                   <select name="method" id="method">
                     {_select_option("osrm", values.get("method", "osrm"), "OSRM")}
                     {_select_option("osmnx", values.get("method", "osrm"), "OSMnx")}
@@ -124,20 +131,21 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </label>
               </div>
 
-              <div class="context-strip">
-                <div>
-                  <span>Methode</span>
-                  <strong id="method-help-title">OSRM</strong>
-                  <p id="method-help" class="help-copy"></p>
+                <div class="context-strip">
+                  <div>
+                    <span>Methode</span>
+                    <strong id="method-help-title">OSRM</strong>
+                    <p id="method-help" class="help-copy"></p>
+                  </div>
+                  <div>
+                    <span>Mode actif</span>
+                    <strong id="mode-help-title">Voiture</strong>
+                    <p id="mode-help" class="help-copy"></p>
+                  </div>
                 </div>
-                <div>
-                  <span>Mode actif</span>
-                  <strong id="mode-help-title">Voiture</strong>
-                  <p id="mode-help" class="help-copy"></p>
-                </div>
-              </div>
+              </section>
 
-              <section class="method-config" data-methods="valhalla">
+              <section class="field-group method-config" data-methods="valhalla">
                 <div class="section-title">
                   <h3>Configuration Valhalla</h3>
                   <p>Renseignez l'URL de votre service Valhalla si elle differe de la valeur par defaut.</p>
@@ -147,7 +155,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </label>
               </section>
 
-              <section class="method-config" data-methods="graphhopper">
+              <section class="field-group method-config" data-methods="graphhopper">
                 <div class="section-title">
                   <h3>Configuration GraphHopper</h3>
                   <p>Utilisez une cle API pour le service public, ou une URL locale si vous hebergez GraphHopper.</p>
@@ -162,7 +170,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="method-config" data-methods="brouter">
+              <section class="field-group method-config" data-methods="brouter">
                 <div class="section-title">
                   <h3>Configuration BRouter</h3>
                   <p>Renseignez l'URL du service BRouter si vous n'utilisez pas le service public.</p>
@@ -172,21 +180,27 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </label>
               </section>
 
-              <div class="split">
-                <label>Objectif de calcul
-                  <select name="objective" id="objective">
-                    {_select_option("fastest", values.get("objective", "fastest"), "Aller au plus vite")}
-                    {_select_option("shortest_km", values.get("objective", "fastest"), "Plus court en km")}
-                    {_select_option("cheapest", values.get("objective", "fastest"), "Le moins couteux")}
-                    {_select_option("balanced", values.get("objective", "fastest"), "Equilibre temps / distance")}
-                  </select>
-                </label>
-                <label>Poids du temps
-                  <input name="balanced_weight" id="balanced_weight" type="number" step="0.05" min="0" max="1" value="{html.escape(values.get('balanced_weight', '0.5'))}">
-                </label>
-              </div>
+              <section class="field-group">
+                <div class="section-title">
+                  <h3>Objectif de calcul</h3>
+                  <p>Ce que l'optimisation privilegie pour ordonner et tracer le parcours.</p>
+                </div>
+                <div class="split">
+                  <label>Objectif
+                    <select name="objective" id="objective">
+                      {_select_option("fastest", values.get("objective", "fastest"), "Aller au plus vite")}
+                      {_select_option("shortest_km", values.get("objective", "fastest"), "Plus court en km")}
+                      {_select_option("cheapest", values.get("objective", "fastest"), "Le moins couteux")}
+                      {_select_option("balanced", values.get("objective", "fastest"), "Equilibre temps / distance")}
+                    </select>
+                  </label>
+                  <label>Poids du temps
+                    <input name="balanced_weight" id="balanced_weight" type="number" step="0.05" min="0" max="1" value="{html.escape(values.get('balanced_weight', '0.5'))}">
+                  </label>
+                </div>
+              </section>
 
-              <section class="mode-config" data-modes="drive">
+              <section class="field-group mode-config" data-modes="drive">
                 <div class="section-title">
                   <h3>Budget et peages</h3>
                   <p>Parametres disponibles uniquement pour la voiture.</p>
@@ -202,7 +216,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="mode-config" data-modes="drive">
+              <section class="field-group mode-config" data-modes="drive">
                 <div class="section-title">
                   <h3>Profil vehicule</h3>
                   <p>Visible pour la voiture: la vitesse, le cout et les peages peuvent influencer le resultat.</p>
@@ -217,7 +231,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="mode-config" data-modes="bike">
+              <section class="field-group mode-config" data-modes="bike">
                 <div class="section-title">
                   <h3>Profil velo</h3>
                   <p>Les peages ne sont pas pertinents en velo. Le mode utilise uniquement les objectifs temps, distance et equilibre.</p>
@@ -229,7 +243,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="mode-config" data-modes="walk">
+              <section class="field-group mode-config" data-modes="walk">
                 <div class="section-title">
                   <h3>Profil marche</h3>
                   <p>La marche retire elle aussi budget et peages. Elle garde les reglages utiles au temps, a la distance et au compromis.</p>
@@ -241,7 +255,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </div>
               </section>
 
-              <section class="ai-config">
+              <section class="field-group ai-config">
                 <div class="section-title">
                   <h3>Assistant IA (optionnel)</h3>
                   <p>Decrivez votre voyage en langage naturel : l'IA propose les etapes, le mode et l'objectif. Elle peut aussi rediger le contenu du carnet. Necessite une cle API cote serveur.</p>
@@ -267,7 +281,7 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
                 </label>
               </section>
 
-              <section class="guide-config">
+              <section class="field-group guide-config">
                 <div class="section-title">
                   <h3>Carnet de voyage</h3>
                   <p>Genere une page illustree facon guide, avec des recommandations de lieux a visiter autour de chaque etape (donnees OpenStreetMap).</p>
@@ -839,14 +853,20 @@ def _page(title: str, content: str) -> str:
       <title>{html.escape(title)}</title>
       <style>
         :root {{
-          --bg: #f4f7fb;
+          --bg: #eef2f8;
           --panel: #ffffff;
+          --group: #f8fafd;
           --text: #142033;
           --muted: #607089;
-          --line: #d8e0ea;
+          --line: #dbe3ee;
+          --line-soft: #e7edf5;
           --accent: #2156f3;
           --accent-dark: #173fb2;
+          --accent-soft: #eaf0ff;
           --error: #b42318;
+          --radius: 14px;
+          --radius-sm: 10px;
+          --shadow: 0 12px 34px rgba(20, 32, 51, 0.07);
         }}
         * {{ box-sizing: border-box; }}
         body {{
@@ -854,40 +874,65 @@ def _page(title: str, content: str) -> str:
           font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           background: var(--bg);
           color: var(--text);
+          line-height: 1.5;
         }}
         header {{
-          padding: 18px 28px 10px;
+          padding: 16px 28px;
           border-bottom: 1px solid var(--line);
-          background: rgba(255,255,255,.7);
-          backdrop-filter: blur(8px);
+          background: rgba(255,255,255,.82);
+          backdrop-filter: blur(10px);
           position: sticky;
           top: 0;
           z-index: 2;
         }}
-        header h1 {{ margin: 0; font-size: 22px; }}
+        header h1 {{
+          margin: 0;
+          font-size: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }}
+        header h1::before {{
+          content: "";
+          width: 12px;
+          height: 12px;
+          border-radius: 4px;
+          background: linear-gradient(135deg, var(--accent), #4f86ff);
+        }}
         main {{
-          max-width: 1200px;
+          max-width: 1180px;
           margin: 0 auto;
-          padding: 30px 28px 40px;
+          padding: 28px 28px 56px;
           display: grid;
-          gap: 20px;
+          gap: 22px;
         }}
         .hero {{
-          padding: 22px;
-          background: #ffffff;
+          padding: 30px 32px;
+          background: linear-gradient(135deg, #ffffff 0%, #f3f7ff 100%);
           border: 1px solid var(--line);
-          border-radius: 8px;
-          box-shadow: 0 10px 30px rgba(20, 32, 51, 0.05);
+          border-radius: var(--radius);
+          box-shadow: var(--shadow);
+          position: relative;
+          overflow: hidden;
+        }}
+        .hero::after {{
+          content: "";
+          position: absolute;
+          inset: 0 0 auto 0;
+          height: 4px;
+          background: linear-gradient(90deg, var(--accent), #59a0ff 60%, #7ce0c8);
         }}
         .hero h2 {{
-          margin: 6px 0 10px;
-          font-size: 30px;
-          line-height: 1.1;
+          margin: 8px 0 12px;
+          font-size: 32px;
+          line-height: 1.12;
+          letter-spacing: -0.02em;
         }}
         .hero .lede {{
           margin: 0;
           color: var(--muted);
-          max-width: 65ch;
+          max-width: 62ch;
+          font-size: 15px;
         }}
         .hint-list div {{
           border: 1px solid var(--line);
@@ -905,23 +950,44 @@ def _page(title: str, content: str) -> str:
         .panel, .summary {{
           background: var(--panel);
           border: 1px solid var(--line);
-          border-radius: 8px;
-          padding: 22px;
-          box-shadow: 0 10px 30px rgba(20, 32, 51, 0.05);
+          border-radius: var(--radius);
+          padding: 24px;
+          box-shadow: var(--shadow);
         }}
         .form-grid {{
           display: grid;
-          gap: 18px;
+          gap: 16px;
+        }}
+        .field-group {{
+          background: var(--group);
+          border: 1px solid var(--line-soft);
+          border-radius: var(--radius-sm);
+          padding: 20px;
+          display: grid;
+          gap: 16px;
+          scroll-margin-top: 80px;
         }}
         .layout {{
           display: grid;
           grid-template-columns: minmax(0, 1.55fr) minmax(300px, .95fr);
-          gap: 20px;
+          gap: 22px;
           align-items: start;
         }}
         .section-title h3, .panel h2 {{
           margin: 0;
-          font-size: 18px;
+          font-size: 16px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }}
+        .section-title h3::before {{
+          content: "";
+          width: 4px;
+          height: 15px;
+          border-radius: 2px;
+          background: var(--accent);
+          flex: 0 0 auto;
         }}
         .section-title p {{
           margin: 6px 0 0;
@@ -977,48 +1043,72 @@ def _page(title: str, content: str) -> str:
           display: grid;
           gap: 12px;
         }}
-        label {{ display: grid; gap: 10px; font-weight: 600; }}
+        label {{ display: grid; gap: 8px; font-weight: 600; font-size: 13.5px; }}
         label.inline {{
           grid-template-columns: none;
           align-items: stretch;
         }}
-        input, select {{
+        input, select, textarea {{
           width: 100%;
           border: 1px solid var(--line);
-          border-radius: 8px;
-          padding: 12px 14px;
+          border-radius: var(--radius-sm);
+          padding: 11px 13px;
           min-height: 46px;
           font: inherit;
           background: #fff;
+          color: var(--text);
+          transition: border-color .15s ease, box-shadow .15s ease;
+        }}
+        input::placeholder, textarea::placeholder {{ color: #9aa8bd; }}
+        input:focus, select:focus, textarea:focus {{
+          outline: none;
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-soft);
         }}
         textarea {{
-          width: 100%;
-          min-height: 120px;
-          border: 1px solid var(--line);
-          border-radius: 8px;
-          padding: 10px 12px;
-          font: inherit;
+          min-height: 96px;
+          resize: vertical;
+          line-height: 1.5;
         }}
         button {{
           border: 0;
-          border-radius: 8px;
+          border-radius: var(--radius-sm);
           padding: 12px 16px;
           min-height: 46px;
           font: inherit;
+          font-weight: 600;
           background: var(--accent);
           color: #fff;
           cursor: pointer;
+          transition: filter .15s ease, transform .05s ease;
         }}
+        button:hover {{ filter: brightness(1.06); }}
+        button:active {{ transform: translateY(1px); }}
         button.secondary, button.icon {{
-          background: #eaf0ff;
+          background: var(--accent-soft);
           color: var(--accent-dark);
         }}
+        button.add-btn {{
+          border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--line));
+          background: transparent;
+          color: var(--accent-dark);
+        }}
+        button.add-btn:hover {{ background: var(--accent-soft); filter: none; }}
         button.icon {{
           min-width: 112px;
           justify-self: end;
+          background: #fff;
+          border: 1px solid var(--line);
+          color: var(--muted);
+          font-weight: 500;
         }}
+        button.icon:hover {{ color: var(--error); border-color: #f3b4ac; background: #fff6f5; filter: none; }}
         button.primary {{
-          background: var(--accent-dark);
+          background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+          font-size: 15px;
+          min-height: 52px;
+          margin-top: 4px;
+          box-shadow: 0 8px 20px rgba(33, 86, 243, 0.28);
         }}
         .grid-2 {{
           display: grid;
@@ -1036,18 +1126,38 @@ def _page(title: str, content: str) -> str:
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 14px 16px;
+          padding: 13px 16px;
           border: 1px solid var(--line);
-          border-radius: 8px;
-          background: #fbfcfe;
-          min-height: 58px;
+          border-radius: var(--radius-sm);
+          background: #fff;
+          min-height: 52px;
+          font-size: 13.5px;
+          cursor: pointer;
         }}
+        .checkbox.inline:hover {{ border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }}
         .checkbox.inline input[type="checkbox"] {{
-          width: 20px;
-          height: 20px;
+          width: 19px;
+          height: 19px;
           margin: 0;
-          flex: 0 0 20px;
-          accent-color: var(--accent-dark);
+          flex: 0 0 19px;
+          accent-color: var(--accent);
+          cursor: pointer;
+        }}
+        .ai-config {{
+          border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+          background:
+            linear-gradient(180deg, var(--accent-soft) 0%, transparent 42%),
+            var(--group);
+        }}
+        .ai-config .section-title h3::after {{
+          content: "IA";
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .06em;
+          color: #fff;
+          background: linear-gradient(135deg, var(--accent), #4f86ff);
+          padding: 2px 7px;
+          border-radius: 999px;
         }}
         .mode-config.is-hidden, .method-config.is-hidden {{
           display: none;
