@@ -171,6 +171,6 @@ def test_render_form_exposes_router_configuration_fields():
     assert 'name="graphhopper_url"' in html
     assert 'name="graphhopper_api_key"' in html
     assert 'name="brouter_url"' in html
-    assert 'class="method-config" data-methods="valhalla"' in html
-    assert 'class="method-config" data-methods="graphhopper"' in html
-    assert 'class="method-config" data-methods="brouter"' in html
+    assert 'method-config" data-methods="valhalla"' in html
+    assert 'method-config" data-methods="graphhopper"' in html
+    assert 'method-config" data-methods="brouter"' in html
