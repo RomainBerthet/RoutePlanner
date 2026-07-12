@@ -261,23 +261,11 @@ def _render_form(values: Dict[str, str] | None = None, error: str = ""):
               <section class="field-group ai-config">
                 <div class="section-title">
                   <h3>Assistant IA (optionnel)</h3>
-                  <p>Decrivez votre voyage en langage naturel : l'IA propose les etapes, le mode et l'objectif. Elle peut aussi rediger le contenu du carnet. Necessite une cle API cote serveur.</p>
+                  <p>Decrivez votre voyage en langage naturel : l'IA propose les etapes, le mode et l'objectif, et peut rediger le contenu du carnet. Le provider et le modele sont ceux configures cote serveur (.env).</p>
                 </div>
                 <label>Decrire le voyage
                   <textarea name="ai_prompt" placeholder="Ex: Road trip detente de 8 jours en voiture depuis Tavaux vers la Suisse, l'Italie et la Slovenie, lacs et terrasses.">{html.escape(values.get('ai_prompt', ''))}</textarea>
                 </label>
-                <div class="split">
-                  <label>Provider IA
-                    <select name="ai_provider">
-                      {_select_option("anthropic", values.get("ai_provider", "anthropic"), "Anthropic (Claude)")}
-                      {_select_option("openai", values.get("ai_provider", "anthropic"), "OpenAI")}
-                      {_select_option("vllm", values.get("ai_provider", "anthropic"), "vLLM / local")}
-                    </select>
-                  </label>
-                  <label>Modele (optionnel)
-                    <input name="ai_model" type="text" value="{html.escape(values.get('ai_model', ''))}" placeholder="Defaut selon le provider">
-                  </label>
-                </div>
                 <label class="checkbox inline">
                   <input type="checkbox" name="ai_enrich" {"checked" if values.get("ai_enrich") else ""}>
                   Rediger le contenu du carnet avec l'IA (astuces, vigilance, budget, secrets)
@@ -465,7 +453,7 @@ def _handle_plan(environ):
     payload = _read_form(environ)
     try:
         ai_prompt = payload.get("ai_prompt", [""])[0].strip()
-        suggestion = _ai_itinerary(payload, ai_prompt) if ai_prompt else None
+        suggestion = _ai_itinerary(ai_prompt) if ai_prompt else None
         mode = suggestion.transport_mode if suggestion else payload.get("mode", ["drive"])[0]
         objective = suggestion.objective if suggestion else payload.get("objective", ["fastest"])[0]
         addresses = suggestion.stops if suggestion else _parse_addresses(payload)
@@ -491,7 +479,7 @@ def _handle_plan(environ):
         if "guide" in payload:
             recommendations = _build_recommendations(plan, payload)
             if "ai_enrich" in payload:
-                guide_content = _build_ai_service(payload).write_guide_content(
+                guide_content = _build_ai_service().write_guide_content(
                     plan, recommendations, request=ai_prompt
                 )
         guide_extras = {
@@ -526,8 +514,6 @@ def _handle_plan(environ):
             "recommend_radius": payload.get("recommend_radius", ["8000"])[0],
             "recommend_limit": payload.get("recommend_limit", ["8"])[0],
             "ai_prompt": payload.get("ai_prompt", [""])[0],
-            "ai_provider": payload.get("ai_provider", ["anthropic"])[0],
-            "ai_model": payload.get("ai_model", [""])[0],
             "ai_enrich": "ai_enrich" in payload,
         }
         return _render_form(values, error=str(exc))
@@ -546,26 +532,16 @@ def _build_recommendations(plan: RoutePlan, payload: Dict[str, List[str]]):
     return service.recommend_for_plan(plan)
 
 
-def _build_ai_service(payload: Dict[str, List[str]]):
+def _build_ai_service():
     from route_planner.ai.factory import LLMFactory
     from route_planner.ai.service import TravelIntelligence
 
-    options = {}
-    model = payload.get("ai_model", [""])[0].strip()
-    api_key = payload.get("ai_api_key", [""])[0].strip()
-    base_url = payload.get("ai_base_url", [""])[0].strip()
-    if model:
-        options["model"] = model
-    if api_key:
-        options["api_key"] = api_key
-    if base_url:
-        options["base_url"] = base_url
-    provider = LLMFactory.get_provider(payload.get("ai_provider", ["anthropic"])[0], **options)
-    return TravelIntelligence(provider)
+    # Provider and model are read from the server config (.env / environment).
+    return TravelIntelligence(LLMFactory.from_env())
 
 
-def _ai_itinerary(payload: Dict[str, List[str]], prompt: str):
-    return _build_ai_service(payload).suggest_itinerary(prompt)
+def _ai_itinerary(prompt: str):
+    return _build_ai_service().suggest_itinerary(prompt)
 
 
 def _router_options_from_payload(payload: Dict[str, List[str]]) -> Dict[str, str]:

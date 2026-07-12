@@ -65,10 +65,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Utilise l'IA pour rediger le contenu du carnet (astuces, vigilance, budget, secrets)",
     )
-    parser.add_argument("--ai-provider", default="anthropic", choices=["anthropic", "openai", "vllm"])
-    parser.add_argument("--ai-model", default="", help="Modele IA (defaut selon le provider)")
-    parser.add_argument("--ai-base-url", default="", help="URL de base (OpenAI-compatible / vLLM)")
-    parser.add_argument("--ai-api-key", default="", help="Cle API du provider IA (sinon variable d'environnement)")
     return parser
 
 
@@ -130,23 +126,17 @@ def main(argv: List[str] | None = None) -> int:
     return 0
 
 
-def _build_ai_service(args: argparse.Namespace):
+def _build_ai_service():
     from route_planner.ai.factory import LLMFactory
     from route_planner.ai.service import TravelIntelligence
 
-    options = {}
-    if args.ai_model:
-        options["model"] = args.ai_model
-    if args.ai_api_key:
-        options["api_key"] = args.ai_api_key
-    if args.ai_base_url:
-        options["base_url"] = args.ai_base_url
-    provider = LLMFactory.get_provider(args.ai_provider, **options)
-    return TravelIntelligence(provider)
+    # Provider and model come from the system config (.env / environment):
+    # AI_PROVIDER + the provider's own vars (VLLM_URL/VLLM_MODEL, etc.).
+    return TravelIntelligence(LLMFactory.from_env())
 
 
 def _ai_itinerary(args: argparse.Namespace):
-    return _build_ai_service(args).suggest_itinerary(args.ai_prompt)
+    return _build_ai_service().suggest_itinerary(args.ai_prompt)
 
 
 def _generate_guide(plan, args: argparse.Namespace, suggestion=None) -> None:
@@ -165,7 +155,7 @@ def _generate_guide(plan, args: argparse.Namespace, suggestion=None) -> None:
 
     guide_content = None
     if args.ai_enrich:
-        guide_content = _build_ai_service(args).write_guide_content(
+        guide_content = _build_ai_service().write_guide_content(
             plan, recommendations, request=args.ai_prompt
         )
 
