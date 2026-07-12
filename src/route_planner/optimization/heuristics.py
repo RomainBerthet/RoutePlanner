@@ -32,8 +32,8 @@ def solve_open_route(matrix: Sequence[Sequence[float]]) -> Tuple[List[int], str]
         current = next_index
 
     order.append(size - 1)
-    order = _two_opt_open(order, matrix)
-    return order, "nearest_neighbor_2opt"
+    order = _local_search_open(order, matrix)
+    return order, "nearest_neighbor_local_search"
 
 
 def _exact_open_route(matrix: Sequence[Sequence[float]]) -> List[int]:
@@ -89,24 +89,60 @@ def _exact_open_route(matrix: Sequence[Sequence[float]]) -> List[int]:
     return list(best_path) + [size - 1]
 
 
-def _two_opt_open(order: List[int], matrix: Sequence[Sequence[float]]) -> List[int]:
+def _local_search_open(order: List[int], matrix: Sequence[Sequence[float]]) -> List[int]:
+    """Improve an open route by alternating 2-opt and Or-opt moves.
+
+    The endpoints (first and last stops) stay pinned. Both move families are
+    evaluated with a full route cost so the search stays correct even when the
+    cost matrix is asymmetric (e.g. driving durations). The loop iterates until
+    neither move family finds a cheaper route, escaping the local minima a lone
+    2-opt pass would get stuck in.
+    """
+
     best = order[:]
     best_cost = _route_cost(best, matrix)
     improved = True
 
     while improved:
         improved = False
-        for i in range(1, len(best) - 2):
-            for j in range(i + 1, len(best) - 1):
-                candidate = best[:i] + list(reversed(best[i : j + 1])) + best[j + 1 :]
-                candidate_cost = _route_cost(candidate, matrix)
-                if candidate_cost < best_cost:
-                    best = candidate
-                    best_cost = candidate_cost
-                    improved = True
-        # Re-run until no better swap is found.
+        best, best_cost, moved = _two_opt_pass(best, best_cost, matrix)
+        improved = improved or moved
+        best, best_cost, moved = _or_opt_pass(best, best_cost, matrix)
+        improved = improved or moved
 
     return best
+
+
+def _two_opt_pass(order, cost, matrix):
+    improved = False
+    for i in range(1, len(order) - 2):
+        for j in range(i + 1, len(order) - 1):
+            candidate = order[:i] + list(reversed(order[i : j + 1])) + order[j + 1 :]
+            candidate_cost = _route_cost(candidate, matrix)
+            if candidate_cost < cost:
+                order, cost, improved = candidate, candidate_cost, True
+    return order, cost, improved
+
+
+def _or_opt_pass(order, cost, matrix):
+    """Relocate short segments (length 1-3) to a cheaper position."""
+
+    improved = False
+    for seg_len in (1, 2, 3):
+        i = 1
+        while i <= len(order) - 1 - seg_len:
+            segment = order[i : i + seg_len]
+            without = order[:i] + order[i + seg_len :]
+            for insert_at in range(1, len(without)):
+                if insert_at == i:
+                    continue
+                candidate = without[:insert_at] + segment + without[insert_at:]
+                candidate_cost = _route_cost(candidate, matrix)
+                if candidate_cost < cost:
+                    order, cost, improved = candidate, candidate_cost, True
+                    break
+            i += 1
+    return order, cost, improved
 
 
 def _route_cost(order: Sequence[int], matrix: Sequence[Sequence[float]]) -> float:

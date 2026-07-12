@@ -1,2 +1,9 @@
 .venv
 dist
+cache
+.idea
+.claude
+__pycache__/
+*.pyc
+*.egg-info/
+.DS_Store
