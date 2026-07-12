@@ -1,5 +1,18 @@
+# Core routing / geocoding / export
 requests
 geopy
 folium
 osmnx
+geopandas
+
+# Configuration
+python-dotenv
+
+# AI connector (optionnel selon le provider utilise)
+#   - openai : backend OpenAI ET vLLM / serveurs compatibles OpenAI
+#   - anthropic : backend Claude
+openai
+anthropic
+
+# Tests
 pytest

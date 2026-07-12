@@ -202,7 +202,26 @@ Les SDK sont **optionnels** — installez seulement celui du backend choisi :
 
 ```bash
 pip install -e ".[anthropic]"   # ou ".[openai]", ou ".[ai]" pour les deux
-export ANTHROPIC_API_KEY="..."   # ou OPENAI_API_KEY / OPENAI_BASE_URL / VLLM_URL
+```
+
+La configuration se fait par variables d'environnement, chargees
+automatiquement depuis un fichier `.env` (via `python-dotenv`) :
+
+```bash
+cp .env.example .env    # puis editez les valeurs
+```
+
+Exemple pour un **vLLM local servant Qwen 3.5** (`.env`) :
+
+```dotenv
+VLLM_URL=http://localhost:8000/v1
+VLLM_MODEL=Qwen/Qwen3.5-32B-Instruct
+VLLM_API_KEY=EMPTY
+```
+
+```bash
+vllm serve Qwen/Qwen3.5-32B-Instruct --port 8000
+route-planner --ai-provider vllm --ai-prompt "..." --guide --ai-enrich
 ```
 
 En CLI (l'IA propose les etapes, puis redige le carnet) :

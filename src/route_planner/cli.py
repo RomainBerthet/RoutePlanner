@@ -87,6 +87,9 @@ def load_addresses(args: argparse.Namespace) -> List[str]:
 
 
 def main(argv: List[str] | None = None) -> int:
+    from route_planner.config import load_env
+
+    load_env()
     parser = build_parser()
     args = parser.parse_args(argv)
 

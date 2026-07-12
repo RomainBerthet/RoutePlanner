@@ -73,6 +73,9 @@ def run(host: str = "127.0.0.1", port: int = 8000) -> None:
 
 
 def main(argv: List[str] | None = None) -> int:
+    from route_planner.config import load_env
+
+    load_env()
     parser = argparse.ArgumentParser(prog="route-planner-web")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
